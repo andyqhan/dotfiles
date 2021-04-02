@@ -1,1 +1,0 @@
-/Users/andyhan/.doom.d

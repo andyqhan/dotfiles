@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# contributor: Andy Han
+# name: my-ob-jupyter python
+# uuid: jupyter-py-fastai
+# key: juf
+# --
+#+BEGIN_SRC jupyter-python :session py :kernel fastai-cpu :async yes
+`%`$0
+#+END_SRC
