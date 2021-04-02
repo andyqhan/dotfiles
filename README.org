@@ -1,0 +1,4 @@
+* My dotfiles
+Symlink (=ln -s /origin /destination= on macos) the files in this directory to the correct places by running =setup.sh=.
+
+The main branch's =doom.d= assumes Emacs 28 (native comp). Use the work branch for Emacs 27.
