@@ -1,10 +1,10 @@
 #!/usr/bin/env zsh
-
-ln -s ./kitty ~/.config/kitty
-ln -s ./.doom.d ~/.doom.d
-ln -s ./.zshenv ~/.zshenv
-ln -s ./.zshrc ~/.zshrc
-ln -s ./.skhdrc ~/.skhdrc
-ln -s ./.yabairc ~/.yabairc
+DOTFILE_DIR=$(pwd)
+ln -s $DOTFILE_DIR/kitty ~/.config/kitty
+ln -s $DOTFILE_DIR/.doom.d ~/.doom.d
+ln -s $DOTFILE_DIR/.zshenv ~/.zshenv
+ln -s $DOTFILE_DIR/.zshrc ~/.zshrc
+ln -s $DOTFILE_DIR/.skhdrc ~/.skhdrc
+ln -s $DOTFILE_DIR/.yabairc ~/.yabairc
 
 
