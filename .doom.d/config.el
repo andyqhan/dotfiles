@@ -81,7 +81,7 @@
 
 (setq doom-scratch-initial-major-mode #'emacs-lisp-mode)
 
-(setq doom-theme 'doom-rouge)
+(setq doom-theme 'doom-henna)
 (setq amh-light-themes
       '(doom-one-light
         doom-nord-light
@@ -187,8 +187,90 @@
         "C->" #'org-demote-subtree)
 
   (add-hook! 'org-mode-hook #'mixed-pitch-mode)
-  ; (add-hook! 'org-mode-hook #'org-fragtog-mode)  ; seems to slow down C-h k
+                                        ; (add-hook! 'org-mode-hook #'org-fragtog-mode)  ; seems to slow down C-h k
+  (setq org-capture-templates
+        '(("t" "Personal todo" entry
+           (file+headline +org-capture-todo-file "Inbox")
+           "* TODO %?\n%i\n%a" :prepend t)
+          ;; ("n" "Personal notes" entry
+          ;;  (file+headline +org-capture-notes-file "Inbox")
+          ;;  "* %u %?\n%i\n%a" :prepend t)
+          ;; ("j" "Journal" entry
+          ;;  (file+olp+datetree +org-capture-journal-file)
+          ;;  "* %U %?\n%i\n%a" :prepend t)
+          ;; ("p" "Templates for projects")
+          ;; ("pt" "Project-local todo" entry
+          ;;  (file+headline +org-capture-project-todo-file "Inbox")
+          ;;  "* TODO %?\n%i\n%a" :prepend t)
+          ;; ("pn" "Project-local notes" entry
+          ;;  (file+headline +org-capture-project-notes-file "Inbox")
+          ;;  "* %U %?\n%i\n%a" :prepend t)
+          ;; ("pc" "Project-local changelog" entry
+          ;;  (file+headline +org-capture-project-changelog-file "Unreleased")
+          ;;  "* %U %?\n%i\n%a" :prepend t)
+          ;; ("o" "Centralized templates for projects")
+          ;; ("ot" "Project todo" entry #'+org-capture-central-project-todo-file "* TODO %?\n %i\n %a" :heading "Tasks" :prepend nil)
+          ;; ("on" "Project notes" entry #'+org-capture-central-project-notes-file "* %U %?\n %i\n %a" :heading "Notes" :prepend t)
+          ;; ("oc" "Project changelog" entry #'+org-capture-central-project-changelog-file "* %U %?\n %i\n %a" :heading "Changelog" :prepend t)
+          )
+        )
+  (defun bjm/org-headline-to-top ()
+    "Move the current org headline to the top of its section"
+    (interactive)
+    ;; check if we are at the top level
+    (let ((lvl (org-current-level)))
+      (cond
+       ;; above all headlines so nothing to do
+       ((not lvl)
+        (message "No headline to move"))
+       ((= lvl 1)
+        ;; if at top level move current tree to go above first headline
+        (org-cut-subtree)
+        (beginning-of-buffer)
+        ;; test if point is now at the first headline and if not then
+        ;; move to the first headline
+        (unless (looking-at-p "*")
+          (org-next-visible-heading 1))
+        (org-paste-subtree))
+       ((> lvl 1)
+        ;; if not at top level then get position of headline level above
+        ;; current section and refile to that position. Inspired by
+        ;; https://gist.github.com/alphapapa/2cd1f1fc6accff01fec06946844ef5a5
+        (let* ((org-reverse-note-order t)
+               (pos (save-excursion
+                      (outline-up-heading 1)
+                      (point)))
+               (filename (buffer-file-name))
+               (rfloc (list nil filename nil pos)))
+          (org-refile nil nil rfloc))))))
+  (defun amh/org-headline-up ()
+    "WIP Move the current org agenda headline above the headline that's currently above it"
+    (interactive)
+    ;; save buffers to preserve agenda
+    (org-save-all-org-buffers)
+    (let ((above-item (save-excursion (org-agenda-switch-to)
+                             (buffer-substring-no-properties (beginning-of-line) (end-of-line)))))
+      (message above-item)
+      )
+    ;(org-cut-subtree)
     )
+  (defun bjm/org-agenda-item-to-top ()
+    "Move the current agenda item to the top of the subtree in its file"
+    (interactive)
+    ;; save buffers to preserve agenda
+    (org-save-all-org-buffers)
+    ;; switch to buffer for current agenda item
+    (org-agenda-switch-to)
+    ;; move item to top
+    (bjm/org-headline-to-top)
+    ;; go back to agenda view
+    (switch-to-buffer "*Org Agenda*")
+    ;; refresh agenda
+    (org-agenda-redo))
+  ;; bind to key 1
+  (map! :map org-agenda-mode-map
+        "C-c t" 'bjm/org-agenda-item-to-top)
+  )
 
 ;; replace isearch with swiper
 (after! ivy
@@ -291,7 +373,7 @@
 
 
 ;; emacs-mac (jap port) setup
-(setq mac-option-modifier 'super)
+(setq mac-option-modifier 'nil)  ; for exposing diacritical marks
 (setq mac-command-modifier 'meta)
 ;;(mac-auto-operator-composition-mode t)
 ;; title bar pretty
@@ -396,15 +478,17 @@
   ;; tell magit where emacsclient is
   (setq with-editor-emacsclient-executable "/usr/local/bin/emacsclient"))
 
+(setq evil-respect-visual-line-mode t)
 (use-package! evil
   :defer t
   :init
-  (setq evil-respect-visual-line-mode t)
   :config
-  (setq evil-move-beyond-eol t)
+  ;(setq evil-move-beyond-eol t)
   ;; expose C-e as end-of-line
   (map! :map evil-motion-state-map
-        "C-e" #'nil))
+        "C-e" #'nil)
+  (map! :n "C-p" #'nil
+        :n "C-p" #'counsel-yank-pop))
 
 (use-package! evil-snipe
   :defer t
@@ -505,6 +589,8 @@
   (interactive)
   (kill-line 0))
 (map! "M-<backspace>" #'phg/kill-to-bol)
+
+
 
 
 ;; required to center the black hole

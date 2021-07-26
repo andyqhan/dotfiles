@@ -2,6 +2,7 @@
 
 ;; for native-comp
 (setq comp-speed 2)
+(setq evil-respect-visual-line-mode t)  ;; needs to be here to work
 
 ;; This file controls what Doom modules are enabled and what order they load
 ;; in. Remember to run 'doom sync' after modifying it!
