@@ -138,3 +138,6 @@ source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # add alias for gtri vpn script
 alias gtri="~/gtri/gtrivpn.sh"
+
+# alias for calibre
+alias ebook-convert="/Applications/calibre.app/Contents/MacOS/ebook-convert"
