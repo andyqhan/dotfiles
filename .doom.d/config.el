@@ -81,7 +81,7 @@
 
 (setq doom-scratch-initial-major-mode #'emacs-lisp-mode)
 
-(setq doom-theme 'doom-henna)
+(setq doom-theme 'doom-palenight)
 (setq amh-light-themes
       '(doom-one-light
         doom-nord-light
@@ -112,7 +112,7 @@
         ; doom-spacegrey  ; a little too minimalistic. org headings don't stand out
         ; doom-ephemeral  ; too light on comments
         doom-rouge  ; i like this one a lot! comments italic. but no hl-line
-        doom-henna  ; comments not italic
+        doom-henna
         ))
 
 (defun amh-set-theme (&optional luminence)
@@ -214,6 +214,51 @@
           ;; ("oc" "Project changelog" entry #'+org-capture-central-project-changelog-file "* %U %?\n %i\n %a" :heading "Changelog" :prepend t)
           )
         )
+
+  ;; My custom todo stuff. Primarily adds a SCHD keyword, which uses. My custom
+  ;; faces need to have different names than Doom's.
+  (with-no-warnings
+    (custom-declare-face '+org-todo-act  '((t (:inherit (bold all-the-icons-blue-alt org-todo)))) "")
+    (custom-declare-face '+org-todo-proj '((t (:inherit (bold all-the-icons-lpink org-todo)))) "")
+    (custom-declare-face '+org-todo-scheduled '((t (:inherit (bold all-the-icons-lcyan org-todo)))) "")
+    (custom-declare-face '+org-todo-maybe '((t (:inherit (bold all-the-icons-dsilver org-todo)))) "")
+    (custom-declare-face '+org-todo-wait '((t (:inherit (bold all-the-icons-lyellow org-todo)))) ""))
+  (setq org-todo-keywords
+        '((sequence
+           "TODO(t)"  ; A task that is in the inbox
+           "PROJ(p)"  ; A project, which usually contains other tasks
+                                        ;"LOOP(r)"  ; A recurring task
+                                        ;"STRT(s)"  ; A task that is in progress
+           "NEXT(n)" 
+           "SCHD(s)"  ; A task that's scheduled
+           "WAIT(w)"  ; Something external is holding up this task
+           "HOLD(h)"  ; This task is paused/on hold because of me
+           "MAYB(m)"  ; An unconfirmed and unapproved task or notion
+           "|"
+           "DONE(d)")  ; Task successfully completed
+                                        ;"KILL(k)") ; Task was cancelled, aborted or is no longer applicable
+          (sequence
+           "[ ](T)"   ; A task that needs doing
+           "[-](S)"   ; Task is in progress
+           "[?](W)"   ; Task is being held up or paused
+           "|"
+           "[X](D)")  ; Task was completed
+          (sequence
+           "|"
+           "OKAY(o)"
+           "YES(y)"
+           "NO(n)"))
+        org-todo-keyword-faces
+        '(("[-]"  . +org-todo-act)
+          ("NEXT" . +org-todo-act)
+          ("SCHD" . +org-todo-scheduled)
+          ("MAYB" . +org-todo-maybe)
+          ;("[?]"  . +org-todo-cancel)
+          ("WAIT" . +org-todo-wait)
+          ("HOLD" . +org-todo-wait)
+          ("PROJ" . +org-todo-proj)
+          ))
+
   (defun bjm/org-headline-to-top ()
     "Move the current org headline to the top of its section"
     (interactive)
