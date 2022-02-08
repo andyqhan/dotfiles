@@ -58,8 +58,8 @@
 ;; (package! company-emoji)
 (package! ivy-bibtex)
 (package! org-ref)
-(package! proof-general
-  :recipe (:local-repo "~/Documents/personal-coding/PG/"))
+;(package! proof-general
+;  :recipe (:local-repo "~/Documents/personal-coding/PG/"))
 ;; i think this is kinda annoying
 (package! ws-butler :disable t)
 (package! ivy-avy)

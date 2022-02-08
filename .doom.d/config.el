@@ -5,7 +5,7 @@
 
 ;;; BREW COMMMAND: --with-natural-title-bar
 
-;;; EMACS-BUILD COMMAND: ./build-emacs-for-macos --git-sha fd9e9308d27138a16e2e93417bd7ad4448fea40a feature/native-comp --native-full-aot
+;;; EMACS-BUILD COMMAND: ./build-emacs-for-macos --git-sha [GIT_SHA] master --native-full-aot
 
 ;; startup fullscreen
 ;(toggle-frame-maximized)
@@ -187,6 +187,7 @@
         "C->" #'org-demote-subtree)
 
   (add-hook! 'org-mode-hook #'mixed-pitch-mode)
+  (add-hook! 'org-mode-hook (company-mode -1))
                                         ; (add-hook! 'org-mode-hook #'org-fragtog-mode)  ; seems to slow down C-h k
   (setq org-capture-templates
         '(("t" "Personal todo" entry
@@ -533,7 +534,13 @@
   (map! :map evil-motion-state-map
         "C-e" #'nil)
   (map! :n "C-p" #'nil
-        :n "C-p" #'counsel-yank-pop))
+        :n "C-p" #'counsel-yank-pop)
+  ;; instant normal state
+  (map! :map global-map
+        "C-g" #'evil-normal-state)
+  ;; retain dwim quit with C-M-g
+  (map! :map global-map
+        "C-M-g" #'doom/escape))
 
 (use-package! evil-snipe
   :defer t
@@ -575,6 +582,10 @@
       "M-n" (cmd! (evil-next-line 5))
       "M-p" (cmd! (evil-previous-line 5)))
 
+;; Global save
+(map! :map global-map
+      "C-x C-s" #'save-buffer)
+
 (use-package! avy
   :defer t
   :config
@@ -597,6 +608,12 @@
   (map! :map flyspell-mode-map
         "C-," #'nil
         "C-." #'nil))
+
+(after! markdown-mode
+  :config
+  (map! :map markdown-mode-map
+        "C-<return>" #'markdown-insert-list-item))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; FUNCTIONS BELOW ;;;;

@@ -141,3 +141,12 @@ alias gtri="~/gtri/gtrivpn.sh"
 
 # alias for calibre
 alias ebook-convert="/Applications/calibre.app/Contents/MacOS/ebook-convert"
+
+. ~/.ghcup/env
+
+JABBA_HOME=~/.jabba
+[ -s "$JABBA_HOME/jabba.sh" ] && source "$JABBA_HOME/jabba.sh"
+
+# use java 8 as default
+jabba alias default system@8
+
