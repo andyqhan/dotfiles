@@ -8,7 +8,8 @@ export ZSH="/Users/andyhan/.oh-my-zsh"
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME="random"
+ # af-magic edvardm frontcube cloud
+ZSH_THEME="edvardm"
 ZSH_THEME_RANDOM_IGNORED=(frisk)
 
 # Set list of themes to pick from when loading at random
@@ -71,7 +72,12 @@ ZSH_THEME_RANDOM_IGNORED=(frisk)
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git)
+plugins=(
+    git
+    zsh-autosuggestions
+    zsh-syntax-highlighting
+    fzf
+)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -111,42 +117,16 @@ export PATH="$PATH:/Users/andyhan/.local/bin"
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/Users/andyhan/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+__conda_setup="$('/Users/andyhan/opt/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
 if [ $? -eq 0 ]; then
     eval "$__conda_setup"
 else
-    if [ -f "/Users/andyhan/miniconda3/etc/profile.d/conda.sh" ]; then
-        . "/Users/andyhan/miniconda3/etc/profile.d/conda.sh"
+    if [ -f "/Users/andyhan/opt/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/Users/andyhan/opt/miniconda3/etc/profile.d/conda.sh"
     else
-        export PATH="/Users/andyhan/miniconda3/bin:$PATH"
+        export PATH="/Users/andyhan/opt/miniconda3/bin:$PATH"
     fi
 fi
 unset __conda_setup
 # <<< conda initialize <<<
-
-# kitty config
-autoload -Uz compinit
-compinit
-# completion for kitty
-kitty + complete setup zsh | source /dev/stdin
-
-# zsh-autosuggestions activation
-source /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-
-# zsh-syntax-highlighting activatation
-source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-
-# add alias for gtri vpn script
-alias gtri="~/gtri/gtrivpn.sh"
-
-# alias for calibre
-alias ebook-convert="/Applications/calibre.app/Contents/MacOS/ebook-convert"
-
-. ~/.ghcup/env
-
-JABBA_HOME=~/.jabba
-[ -s "$JABBA_HOME/jabba.sh" ] && source "$JABBA_HOME/jabba.sh"
-
-# use java 8 as default
-jabba alias default system@8
 

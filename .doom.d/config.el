@@ -525,6 +525,7 @@
   (setq with-editor-emacsclient-executable "/usr/local/bin/emacsclient"))
 
 (setq evil-respect-visual-line-mode t)
+
 (use-package! evil
   :defer t
   :init
