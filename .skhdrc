@@ -3,10 +3,10 @@
 
 # focus window
 #shift + alt - x : yabai -m window --focus recent
-meh - b : yabai -m window --focus west
+meh - b : yabai -m window --focus west || yabai -m display --focus west
 meh - n : yabai -m window --focus south
 meh - p : yabai -m window --focus north
-meh - f : yabai -m window --focus east
+meh - f : yabai -m window --focus east || yabai -m display --focus east
 meh - z : yabai -m window --focus stack.prev
 meh - c : yabai -m window --focus stack.next
 
@@ -18,11 +18,11 @@ lctrl + lalt + cmd - p : yabai -m window --swap north
 lctrl + lalt + cmd - f : yabai -m window --swap east
 lctrl + lalt + cmd - f : yabai -m window --swap east
 
-# move window
-hyper - b : yabai -m window --warp west
+# move window (warp within display, or move to adjacent display if at boundary)
+hyper - b : yabai -m window --warp west || (yabai -m window --display west && yabai -m display --focus west)
 hyper - n : yabai -m window --warp south
 hyper - p : yabai -m window --warp north
-hyper - f : yabai -m window --warp east
+hyper - f : yabai -m window --warp east || (yabai -m window --display east && yabai -m display --focus east)
 
 # balance size of windows
 hyper - 0 : yabai -m space --balance
@@ -37,15 +37,15 @@ hyper - 0 : yabai -m space --balance
 # shift + alt - right  : yabai -m window --grid 1:2:1:0:1:1
 
 # create space, move window and follow focus - uses jq for parsing json (brew install jq)
-shift + cmd - h : yabai -m space --create && \
-                  index="$(yabai -m query --spaces --display | jq 'map(select(."native-fullscreen" == 0))[-1].index')" && \
-                  yabai -m window --space "${index}" && \
-                  yabai -m space --focus "${index}"
-
+#shift + cmd - h : yabai -m space --create && \
+#                  index="$(yabai -m query --spaces --display | jq 'map(select(."native-fullscreen" == 0))[-1].index')" && \
+#                  yabai -m window --space "${index}" && \
+#                  yabai -m space --focus "${index}"
+#
 # create space and follow focus - uses jq for parsing json (brew install jq)
-cmd + alt - h : yabai -m space --create && \
-                index="$(yabai -m query --spaces --display | jq 'map(select(."native-fullscreen" == 0))[-1].index')" && \
-                yabai -m space --focus "${index}"
+#cmd + alt - h : yabai -m space --create && \
+#                index="$(yabai -m query --spaces --display | jq 'map(select(."native-fullscreen" == 0))[-1].index')" && \
+#                yabai -m space --focus "${index}"
 
 # destroy space
 #meh - w : yabai -m space --destroy
@@ -86,8 +86,8 @@ hyper - 9 : yabai -m window --space  9 && yabai -m space --focus 9
 hyper - e : empty=$(yabai -m query --spaces --display | jq 'map(select(."windows" == []))[0].index') && \
             yabai -m window --space $empty && yabai -m space --focus $empty
 
-# focus monitor
-meh - o : yabai -m display --focus recent
+# focus monitor (cycle through all displays)
+meh - o : yabai -m display --focus next || yabai -m display --focus first
 #shift + alt - q  : yabai -m display --focus prev  # semicolon
 #shift + alt - j  : yabai -m display --focus next
 
@@ -105,10 +105,10 @@ hyper - o  : yabai -m window --display recent && yabai -m display --focus recent
 # ctrl + shift + alt - 3  : yabai -m window --display 3 && yabai -m display --focus 3
 
 # move window
-hyper - b : yabai -m window --move rel:-20:0
-hyper - n : yabai -m window --move rel:0:20
-hyper - p : yabai -m window --move rel:0:-20
-hyper - f : yabai -m window --move rel:20:0
+# hyper - b : yabai -m window --move rel:-20:0
+# hyper - n : yabai -m window --move rel:0:20
+# hyper - p : yabai -m window --move rel:0:-20
+# hyper - f : yabai -m window --move rel:20:0
 
 # increase window fn
 lctrl + lalt + cmd - left : yabai -m window --resize left:-20:0

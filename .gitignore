@@ -1,0 +1,7 @@
+# never track local secrets
+.zshenv.local
+*.local
+.env
+.env.*
+*.pem
+*.key

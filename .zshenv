@@ -8,3 +8,5 @@ if [ -f "/Applications/Emacs.app/Contents/MacOS/bin/emacsclient" ]; then
   alias emacsclient="/Applications/Emacs.app/Contents/MacOS/bin/emacsclient"
 fi
 
+# API keys / secrets live in an untracked local file (never committed).
+[ -f "$HOME/.zshenv.local" ] && source "$HOME/.zshenv.local"

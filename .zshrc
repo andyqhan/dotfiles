@@ -130,3 +130,25 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/Users/andyhan/.lmstudio/bin"
+
+
+alias sscopy='osascript ~/Documents/personal-coding/org2substack/html2clip.scpt'
+# org -> Substack in one step: pandoc (via substack.lua) + copy as rich HTML
+alias org2ss='~/Documents/personal-coding/org2substack/org2ss'
+
+alias c='claude --dangerously-skip-permissions'
+
+alias closetorch='ssh -O exit torch 2>/dev/null || rm -f ~/.ssh/control-ah7660@login.torch.hpc.nyu.edu:* 2>/dev/null'
+
+alias z='zellij'
+
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/andyhan/Documents/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/andyhan/Documents/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/andyhan/Documents/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/andyhan/Documents/google-cloud-sdk/completion.zsh.inc'; fi
+eval "$(atuin init zsh --disable-up-arrow)"

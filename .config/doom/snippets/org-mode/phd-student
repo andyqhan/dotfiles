@@ -1,0 +1,20 @@
+# -*- mode: org-mode -*-
+# name: phd-student
+# key: phd
+# --
+* ${1:First Last} :phd-student:
+:PROPERTIES:
+:CUSTOM_ID: ${2:`(let* ((s (yas-field-value 1))
+                        (s (downcase s)))
+                   (replace-regexp-in-string "[^[:alnum:]]+" "-" s))`}
+:AFFILIATION: ${3:NYU}
+:WEBSITE: ${4:https://...}
+:SCHOLAR: ${5:https://scholar.google.com/...}
+:EMAIL: ${6:...}
+:ADVISOR: [[file:rolodex.org::#${7:advisor-id}][${8:Advisor Name}]]
+:COHORT: ${9:2025}
+:TOPICS: ${10:ML, HCI}
+:END:
+
+- Notes:
+%?

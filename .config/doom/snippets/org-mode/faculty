@@ -1,0 +1,17 @@
+# -*- mode: org-mode -*-
+# name: faculty
+# key: faculty
+# condition: t
+# --
+* ${1:First Last} :faculty:
+:PROPERTIES:
+:CUSTOM_ID: ${2:`(let* ((s (yas-field-value 1))
+                        (s (downcase s)))
+                   (replace-regexp-in-string "[^[:alnum:]]+" "-" s))`}
+:AFFILIATION: ${3:NYU}
+:WEBSITE: ${4:https://...}
+:SCHOLAR: ${5:https://scholar.google.com/...}
+:EMAIL: ${6:...}
+:TOPICS: ${7:ML, HCI, viz, XAI, safety, RAI}
+:END:
+
