@@ -48,7 +48,15 @@
 ;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
 ;; (unpin! t)
 
-(package! astro-ts-mode)
+;; astro-ts-mode disabled: not needed, and its autoload eagerly checks for the
+;; astro tree-sitter grammar, spamming a "grammar unavailable" warning at startup.
+(package! astro-ts-mode :disable t)
+
+;; kkp (Kitty Keyboard Protocol, from :os tty) disabled: its terminal handshake
+;; one-shot handler unbinds `\e[?' in input-decode-map, disarming
+;; +amh/tty-swallow-csi-replies; stray CSI replies after unclean SSH
+;; disconnects then leak in as keystrokes (`[0u', evil `u'/`c' mutations).
+(package! kkp :disable t)
 (package! org-side-tree)
 
 ;; agent-shell: in-Emacs coding agents over the Agent Client Protocol (ACP).

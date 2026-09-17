@@ -3,6 +3,24 @@
 ;; Place your private configuration here! Remember, you do not need to run 'doom
 ;; sync' after modifying this file!
 
+;; --- Shared-cluster citizenship -----------------------------------------
+;; This runs on a shared 224-core node. `native-comp-async-jobs-number' defaults
+;; to ~half the cores (~112), so first-launch JIT native-compilation would spawn
+;; ~112 emacs subprocesses at once and stall the box. Cap it hard.
+(setq native-comp-async-jobs-number 8)
+
+;; --- SSH indicator ------------------------------------------------------
+;; Running over SSH (e.g. a cluster node)? Make it obvious you're not local: an
+;; "ssh:<host>" badge in the modeline (right side, via global-mode-string), and
+;; the host in the terminal title (shows in the iTerm2 tab). Local Emacs has no
+;; SSH_CONNECTION, so this is a no-op there.
+(when (getenv "SSH_CONNECTION")
+  (let ((host (car (split-string (system-name) "\\."))))
+    (add-to-list 'global-mode-string
+                 (propertize (format " ssh:%s " host) 'face 'doom-modeline-urgent)
+                 'append)
+    (setq frame-title-format (format "%s — %%b" host))))
+
 
 ;; Some functionality uses this to identify you, e.g. GPG configuration, email
 ;; clients, file templates and snippets. It is optional.
@@ -475,6 +493,50 @@ detects the modifier and dispatches here)."
 (after! vterm
   (setq vterm-max-scrollback 100000))   ; deep scrollback for copy-mode navigation
 
+;; --- Name vterm buffers running Claude Code after their session -------------
+;; Claude Code sets the terminal title (OSC 0) to "<prefix> <session name>",
+;; exactly like it does in a bare iTerm2 window. <prefix> is ✳ (U+2733) when
+;; idle, or a braille spinner frame (U+2800-U+28FF) while Claude is working; the
+;; resume picker uses "claude · …". Our chain (emacs -nw -> vterm -> zsh ->
+;; claude, no zellij/tmux) delivers that OSC straight to vterm.
+;;
+;; This vterm version made `vterm-set-title-functions' obsolete — incoming titles
+;; now go through `vterm--set-title', which only renames when the global
+;; `vterm-buffer-name-string' is set AND would use the raw title (so the buffer
+;; name would flicker with the spinner, on *every* vterm). So we :override it:
+;; strip Claude's animated prefix and name the buffer after the session; for any
+;; other program, fall back to vterm's default behaviour.
+(after! vterm
+  (defvar-local +amh/vterm-claude-name nil
+    "Last Claude session name applied to this vterm buffer (churn guard).")
+
+  (defun +amh/vterm-claude-title->name (title)
+    "Return the Claude session name in TITLE, or nil if TITLE isn't Claude's."
+    (when (stringp title)
+      (let ((name (replace-regexp-in-string
+                   "\\`[ \t]*\\(?:✳\\|[⠀-⣿]\\)[ \t]*" "" title)))
+        (cond
+         ;; A ✳/spinner prefix was stripped -> definitely Claude; NAME is the title.
+         ((not (string= name title)) (string-trim name))
+         ;; No prefix, but the title names claude (e.g. "claude · resume").
+         ((string-match-p "\\bclaude\\b" title) (string-trim title))
+         (t nil)))))
+
+  (defun +amh/vterm--set-title (title)
+    "Claude-aware replacement for `vterm--set-title'.
+Names a vterm running Claude Code after its session (stable across the spinner);
+for any other program, defers to vterm's default `vterm-buffer-name-string'."
+    (let ((name (+amh/vterm-claude-title->name title)))
+      (cond
+       ((and name (not (string-empty-p name)))
+        (unless (equal name +amh/vterm-claude-name)
+          (setq +amh/vterm-claude-name name)
+          (rename-buffer (generate-new-buffer-name (format "✳ %s" name)))))
+       (vterm-buffer-name-string
+        (rename-buffer (format vterm-buffer-name-string title) t)))))
+
+  (advice-add 'vterm--set-title :override #'+amh/vterm--set-title))
+
 (defun +amh/vterm-runpod ()
   "Open a LOCAL vterm attached to a persistent zellij session on runpod-25.
 Behaves like iTerm2 (ssh runs inside the terminal) but with vterm copy-mode for
@@ -492,3 +554,223 @@ is set so zellij's edit-scrollback (`C-s' then `e') opens the pane history in vi
     (vterm-send-return)))
 
 (map! :leader :desc "Vterm: runpod zellij" "o z" #'+amh/vterm-runpod)
+
+
+;; --- vterm key passthrough (terminal Claude Code workflow) ------------------
+(after! vterm
+  ;; Stop swallowing C-c so a double C-c exits Claude Code (the C-c prefix is
+  ;; unused here; vterm is driven via evil + SPC). Rebind explicitly because the
+  ;; keymap was already built with C-c excluded.
+  ;; Show the mode line in vterm. In a TTY the mode line IS the horizontal window
+  ;; divider (real window dividers are GUI-only), and Doom hides it in vterm, so
+  ;; horizontally-stacked vterm windows have no visible boundary or drag handle.
+  (remove-hook 'vterm-mode-hook #'mode-line-invisible-mode)
+  (setq vterm-keymap-exceptions (delete "C-c" vterm-keymap-exceptions))
+  (define-key vterm-mode-map (kbd "C-c") #'vterm--self-insert)
+  ;; evil-collection (C-c C-z) plus flycheck/persp/yasnippet bind C-c prefixes in
+  ;; maps that outrank the major map, making C-c a dead prefix. Bind C-c as a command
+  ;; in the evil insert+normal aux maps (highest precedence) so it reaches Claude.
+  (dolist (st '(insert normal))
+    (define-key (evil-get-auxiliary-keymap vterm-mode-map st t) (kbd "C-c") #'vterm--self-insert))
+  ;; ESC reaches the inner app (Claude Code) only from evil *normal* state; a
+  ;; first ESC still drops insert->normal (muscle memory), so double-ESC sends
+  ;; an escape through to Claude.
+  (map! :map vterm-mode-map :n "<escape>" #'vterm-send-escape)
+  ;; Line-by-line mouse-wheel scrolling for FULLSCREEN Claude Code (tui:fullscreen).
+  ;; vterm does not forward mouse to the child, so inject the raw SGR mouse-wheel
+  ;; sequences straight to the PTY; Claude's fullscreen renderer (mouse tracking on)
+  ;; turns them into scroll:lineUp/lineDown (tunable via Claude's /scroll-speed).
+  ;; Bound in evil insert+normal state so it outranks ultra-scroll / pixel-scroll.
+  ;; NOTE: at a bare shell prompt (no mouse app) plain wheel injects mouse codes;
+  ;; use Shift+wheel there to scroll vterm's own buffer.
+  (defun +amh/vterm-wheel (seq)
+    "Send raw SGR mouse SEQ to the vterm child PTY."
+    (when (bound-and-true-p vterm--process)
+      (process-send-string vterm--process seq)
+      (accept-process-output vterm--process 0.02)))
+  (defun +amh/vterm-wheel-up ()   (interactive) (+amh/vterm-wheel "\e[<64;1;1M"))
+  (defun +amh/vterm-wheel-down () (interactive) (+amh/vterm-wheel "\e[<65;1;1M"))
+  (map! :map vterm-mode-map
+        :ni "<wheel-up>"          #'+amh/vterm-wheel-up
+        :ni "<double-wheel-up>"   #'+amh/vterm-wheel-up
+        :ni "<triple-wheel-up>"   #'+amh/vterm-wheel-up
+        :ni "<wheel-down>"        #'+amh/vterm-wheel-down
+        :ni "<double-wheel-down>" #'+amh/vterm-wheel-down
+        :ni "<triple-wheel-down>" #'+amh/vterm-wheel-down
+        :ni "<S-wheel-up>"        #'scroll-down-command
+        :ni "<S-wheel-down>"      #'scroll-up-command)
+  ;; Send a literal SPACE to the inner app (Claude): SPC is the evil/Doom leader
+  ;; in normal state, so it never reaches Claude there (in insert it passes through
+  ;; fine). C-SPC (previously a NUL self-insert) now sends a real space in both
+  ;; states. Built-in alternative: C-q SPC (send-next-key).
+  (defun +amh/vterm-send-space ()
+    "Send a literal space to the vterm child (Claude)."
+    (interactive) (vterm-send "SPC"))
+  (map! :map vterm-mode-map :ni "C-SPC" #'+amh/vterm-send-space))
+
+
+;; --- Evil insert-state cursor COLOR in the terminal (OSC 12) ----------------
+;; etcc changes cursor SHAPE per state, but full-screen apps (Claude Code) set
+;; their own cursor shape, so the insert bar doesn't show inside Claude's input.
+;; Cursor COLOR set via OSC 12 survives that (Claude sets only shape), so it works
+;; as an insert/normal indicator everywhere, vterm/Claude included. Insert -> color;
+;; leaving insert -> reset (OSC 112). No-op in GUI Emacs.
+(defun +amh/tty-cursor-color (color)
+  "Set terminal cursor COLOR via OSC 12, or reset (OSC 112) when COLOR is nil."
+  (unless (display-graphic-p)
+    (send-string-to-terminal (if color (format "\e]12;%s\a" color) "\e]112\a"))))
+(defvar +amh/insert-cursor-color "#ff5f00"
+  "Terminal cursor color while in evil insert state.")
+(add-hook 'evil-insert-state-entry-hook
+          (defun +amh/cursor-color-insert () (+amh/tty-cursor-color +amh/insert-cursor-color)))
+(add-hook 'evil-insert-state-exit-hook
+          (defun +amh/cursor-color-reset () (+amh/tty-cursor-color nil)))
+(add-hook 'kill-emacs-hook #'+amh/cursor-color-reset)
+
+;; ---------------------------------------------------------------------------
+;; emacsclient -t: restore workspace, buffers & window layout on reconnect
+;; ---------------------------------------------------------------------------
+;; Goal: close a terminal, run `emacsclient -t` later, and get everything back
+;; exactly as it was. Two situations are handled:
+;;
+;;   (a) Daemon still alive (you only closed the terminal): all buffers and
+;;       persp workspaces are already in memory; we just re-apply the *window
+;;       layout* of the frame you last closed onto the new client frame (a fresh
+;;       client frame otherwise opens on the dashboard).
+;;   (b) Daemon was restarted (node reboot, daemon killed/reaped): we reload the
+;;       persp-mode session that was saved to disk on the way out.
+;;
+;; The dotfiles `emacsclient` wrapper auto-starts the Doom daemon when a frame
+;; is requested and none is running, so a bare `emacsclient -t` reaches case (b)
+;; transparently. Named (not lambda) hook fns => `doom/reload' won't duplicate.
+
+;; (a) Carry the window layout across client frames --------------------------
+(defvar +amh/last-window-state nil
+  "`window-state' of the most recently deleted frame, replayed onto the next.")
+
+(defun +amh/save-frame-state (frame)
+  "Stash FRAME's window layout for the next client frame to restore.
+When a real (client) terminal closes, also persist the Doom session to disk so
+a later cold start can restore it even if the daemon is later killed hard."
+  (when (frame-live-p frame)
+    (with-selected-frame frame
+      (ignore-errors
+        (setq +amh/last-window-state
+              (window-state-get (frame-root-window frame) t))))
+    (when (frame-parameter frame 'client)
+      (let ((inhibit-message t))
+        (ignore-errors (doom-save-session))))))
+(add-hook 'delete-frame-functions #'+amh/save-frame-state)
+
+;; --- Swallow stray CSI `?' replies on tty frames -----------------------------
+;; A client that dies without a clean teardown (dropped SSH, wedged/killed
+;; daemon) leaves iTerm2 with mouse/focus reporting still enabled, and terminal
+;; probes (e.g. Claude Code's kitty-keyboard query) can leave un-consumed
+;; replies like `CSI ? 0 u' on the line. On the next attach those bytes arrive
+;; as keystrokes: `[' lands on the evil unimpaired prefix, a help prompt opens
+;; ("Command under [: "), and the leftover "0u" types itself in. Mouse/focus
+;; reports already have decoders (xterm-mouse-mode / xterm focus tracking), but
+;; nothing ever decodes `CSI ? ... <final>' replies (kkp flags, DA, DECRPM) --
+;; they are never real keys, so decode-and-drop them. Terminal-local map, hence
+;; `tty-setup-hook'.
+(defun +amh/tty-swallow-csi-replies ()
+  (define-key input-decode-map "\e[?"
+    (lambda (&optional _prompt)
+      (let (c)
+        ;; Consume parameter bytes up to and including the final byte.
+        (while (and (setq c (read-event nil nil 0.1))
+                    (memq c (append "0123456789;:" nil))))
+        []))))
+(add-hook 'tty-setup-hook #'+amh/tty-swallow-csi-replies)
+
+(defun +amh/reap-client-frames (&optional keep)
+  "Delete every terminal client frame except KEEP.
+I only ever want one attached terminal frame at a time, but a previous
+`emacsclient -t' frame can outlive a non-clean SSH disconnect (dropped
+connection / closed laptop / closed terminal app): sshd doesn't reap the old
+pty + shell + emacsclient until its keepalive notices the client is gone, which
+can lag for minutes. Until then the stale frame lingers, so the next reconnect
+sees >1 client frame and persp-mode spawns a throwaway `#N' workspace for the
+new one. Reaping the leftovers keeps the next frame landing straight in `main'.
+
+`+amh/save-frame-state' is removed from `delete-frame-functions' for the loop
+and its work done here instead — layout stashed per frame (last one wins, same
+as before), `doom-save-session' run ONCE after the loop. Running the full persp
+serialization per stale frame is a big blocking surface; with a dozen
+accumulated zombie frames it once wedged the whole daemon mid-reap."
+  (let ((reaped nil))
+    (dolist (f (frame-list))
+      (when (and (frame-parameter f 'client)
+                 (not (eq f keep))
+                 (frame-live-p f))
+        (ignore-errors
+          (setq +amh/last-window-state
+                (window-state-get (frame-root-window f) t)))
+        (let ((delete-frame-functions
+               (remq #'+amh/save-frame-state delete-frame-functions)))
+          (ignore-errors (delete-frame f t)))
+        (setq reaped t)))
+    (when reaped
+      (let ((inhibit-message t))
+        (ignore-errors (doom-save-session))))))
+
+(defun +amh/restore-window-state-1 (frame)
+  "Fix up a freshly-reconnected client FRAME.
+The daemon stays alive and persp-mode keeps the real layout in `main'. If persp
+parked us in a throwaway `#N' workspace (it does that whenever it sees more than
+one client frame), switch to `main' so its stored layout replays, and reap the
+empty throwaway. Then drop any leftover (zombie) client frames so only this one
+remains. Finally, if a layout was stashed on a genuine frame-delete, replay it.
+
+This is a safety net for the bare `emacsclient -t' path; the `e' wrapper already
+reaps zombies *before* attaching, so the `#N' workspace is usually never created."
+  (when (frame-live-p frame)
+    (with-selected-frame frame
+      (when (and (bound-and-true-p persp-mode) (fboundp '+workspace-switch))
+        (let ((cur (safe-persp-name (get-current-persp))))
+          (when (string-prefix-p "#" cur)
+            (ignore-errors (+workspace-switch +workspaces-main))
+            ;; reap the empty throwaway we just left; bind autokill off so this
+            ;; can never kill a buffer that briefly landed in it (e.g. a Claude
+            ;; vterm) — buffers it shares with `main' are untouched regardless.
+            (ignore-errors
+              (let ((p (gethash cur *persp-hash*)))
+                (when (and p (not (seq-some #'doom-real-buffer-p (persp-buffers p))))
+                  (let ((persp-autokill-buffer-on-remove nil))
+                    (persp-kill cur))))))))
+      (when +amh/last-window-state
+        (ignore-errors
+          (window-state-put +amh/last-window-state (frame-root-window) 'safe))))
+    (+amh/reap-client-frames frame)))
+
+(defun +amh/restore-window-state (&rest _)
+  "Replay the last client frame's layout onto the freshly-created one.
+Deferred on a short timer so persp-mode's emacsclient frame-init
+(`+workspaces-associate-frame-fn': switches workspace, shows the dashboard, and
+flashes the `[N] main' tabline ~0.1s later) has finished first; running last
+makes our `window-state-put' authoritative. Note: this deliberately no longer
+bails out when a second client frame is present — that guard is exactly what
+left us stranded on the dashboard whenever a stale/dead frame from a dropped
+SSH session overlapped the reconnect."
+  (let ((frame (selected-frame)))
+    (run-at-time 0.15 nil #'+amh/restore-window-state-1 frame)))
+
+;; (b) Reload the saved session the first time a fresh daemon gets a frame -----
+(defvar +amh/session-restored nil
+  "Non-nil once the session has been auto-loaded for this daemon's lifetime.")
+
+(defun +amh/maybe-restore-session (&rest _)
+  "On the first client frame of a fresh daemon, reload the last saved session.
+Guarded to a cold daemon (nothing file-backed open yet) so it never clobbers a
+daemon you have already been working in."
+  (when (and (daemonp)
+             (not +amh/session-restored)
+             (not (seq-some #'buffer-file-name (buffer-list)))
+             (file-exists-p (doom-session-file)))
+    (setq +amh/session-restored t)
+    (let ((inhibit-message t))
+      (ignore-errors (doom-load-session)))))
+
+;; Order matters: restore the session (buffers) first, then re-apply the layout.
+(add-hook 'server-after-make-frame-hook #'+amh/maybe-restore-session 10)
+(add-hook 'server-after-make-frame-hook #'+amh/restore-window-state 90)
